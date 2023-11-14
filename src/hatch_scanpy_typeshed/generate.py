@@ -26,7 +26,7 @@ TEMPLATE_FUNC = """\
 @overload
 def {name}(
     {parameters}
-) -> {return_annotation}: ...
+) -> {return_annotation}: ...\
 """
 
 
@@ -49,8 +49,8 @@ def generate_overloads(mod: ModuleType) -> str:
 
         func_strs.extend(_format_func(sig, name) for sig in sigs)
 
-    imports = "from anndata import AnnData"
-    return TEMPLATE_MOD.format(imports=imports, functions="\n".join(func_strs))
+    imports = "import typing\nfrom anndata import AnnData"
+    return TEMPLATE_MOD.format(imports=imports, functions="\n\n".join(func_strs))
 
 
 def _format_func(sig: signature, name: str) -> str:
