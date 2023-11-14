@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Generator
 from inspect import Parameter, signature
 from types import FunctionType
 from typing import TYPE_CHECKING
@@ -10,7 +9,7 @@ from typing import TYPE_CHECKING
 from .transform import transform_signature
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Generator, Sequence
     from types import ModuleType
 
 
