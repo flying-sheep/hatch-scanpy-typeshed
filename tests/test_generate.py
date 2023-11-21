@@ -25,7 +25,7 @@ def test_copy(tmp_path: Path) -> None:
     mod = StubSource(path.stem, path=str(path))
 
     mypy_opts = mypy_options(parse_options([]))
-    mypy_opts.verbosity = 1
+    mypy_opts.verbosity = 0  # Set to 1 for debugging
 
     generate_asts_for_modules([mod], parse_only=False, mypy_options=mypy_opts, verbose=True)
     assert mod.ast

@@ -6,7 +6,7 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, Literal
 
 from mypy.nodes import FuncDef, NameExpr, OverloadedFuncDef, OverloadPart
-from mypy.types import Instance, get_proper_type
+from mypy.types import UnboundType, get_proper_type
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator
@@ -60,10 +60,10 @@ def transform_copy_func_def(func_def: FuncDef) -> Generator[FuncDef, None, None]
 
 def _check_copy_param(func_def: FuncDef) -> bool:
     copy_param = next((arg for arg in func_def.arguments if arg.variable.name == "copy"), None)
-    if copy_param is None or not isinstance(copy_param.initializer, NameExpr) or copy_param.initializer.name != "None":
+    if copy_param is None or not isinstance(copy_param.initializer, NameExpr) or copy_param.initializer.name != "False":
         return False
     type_annot = get_proper_type(copy_param.type_annotation)
-    if type_annot is None or not isinstance(type_annot, Instance) or type_annot.type.fullname != "bool":
+    if type_annot is None or not isinstance(type_annot, UnboundType) or type_annot.name != "bool":
         return False
     return True
 

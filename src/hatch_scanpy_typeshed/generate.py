@@ -7,15 +7,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mypy.stubgen import (
+    ASTStubGenerator,
     Options,
     StubSource,
     collect_build_targets,
+    find_defined_names,
     generate_asts_for_modules,
     mypy_options,
 )
 from mypy.stubutil import common_dir_prefix, generate_guarded
 
-from .compat import ASTStubGenerator
 from .transform import transform_func_def
 
 if TYPE_CHECKING:
@@ -60,6 +61,7 @@ def generate_stub_from_ast(
         export_less=export_less,
     )
     assert mod.ast is not None, "This function must be used only with analyzed modules"
+    find_defined_names(mod.ast)
     mod.ast.accept(gen)
 
     # Write output to file.
