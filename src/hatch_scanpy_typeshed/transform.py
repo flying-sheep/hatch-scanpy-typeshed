@@ -5,7 +5,7 @@ from __future__ import annotations
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Literal
 
-from mypy.nodes import FuncDef, NameExpr, OverloadedFuncDef
+from mypy.nodes import FuncDef, NameExpr, OverloadedFuncDef, OverloadPart
 from mypy.types import Instance, get_proper_type
 
 if TYPE_CHECKING:
@@ -13,9 +13,10 @@ if TYPE_CHECKING:
     from inspect import Signature
 
 
-def transform_func_def(sig: FuncDef) -> OverloadedFuncDef | None:
+def transform_func_def(func_def: FuncDef) -> OverloadedFuncDef | None:
     """Transform a scanpy function definition into a overloaded definition."""
-    return OverloadedFuncDef(list(_transform_func_defs([sig])))
+    parts: list[OverloadPart] = list(_transform_func_defs([func_def]))
+    return OverloadedFuncDef(parts) if len(parts) > 1 else None
 
 
 def _transform_func_defs(func_defs: Iterable[FuncDef]) -> Iterator[FuncDef]:
