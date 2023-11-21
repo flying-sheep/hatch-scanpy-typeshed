@@ -21,7 +21,10 @@ classifiers = [
     "Framework :: Hatch",
     "Typing :: Typed",
 ]
-dependencies = ["hatchling"]
+dependencies = [
+    "hatchling",
+    "mypy",
+]
 
 [project.entry-points.hatch]
 scanpy-builder = "hatch_scanpy_typeshed.hooks"
@@ -62,6 +65,8 @@ ignore = [
     "D203", "D213",
     # TODO comments are OK
     "FIX002",
+    # I know how to use asserts
+    "S101",
     # Ignore checks for possible passwords
     "S105", "S106", "S107",
 ]
@@ -75,7 +80,6 @@ known-first-party = ["hatch_scanpy_typeshed"]
     "ARG001", # fixtures can look like unused parameters
     "D103", # test functions don’t need docstrings
     "INP001", # test directories shouldn’t contain __init__.py
-    "S101", # tests can use magic values
 ]
 
 [tool.coverage.run]
