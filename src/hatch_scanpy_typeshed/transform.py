@@ -3,29 +3,26 @@
 from __future__ import annotations
 
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
-from mypy.nodes import FuncDef, NameExpr, OverloadedFuncDef, OverloadPart
-from mypy.types import UnboundType, get_proper_type
+from mypy.stubdoc import ArgSig, FunctionSig
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator
-    from inspect import Signature
 
 
-def transform_func_def(func_def: FuncDef) -> OverloadedFuncDef | None:
+def transform_func_def(sigs: Iterable[FunctionSig]) -> list[FunctionSig] | None:
     """Transform a scanpy function definition into a overloaded definition."""
-    parts: list[OverloadPart] = list(_transform_func_defs([func_def]))
-    return OverloadedFuncDef(parts) if len(parts) > 1 else None
+    return list(_transform_func_defs(sigs))
 
 
-def _transform_func_defs(func_defs: Iterable[FuncDef]) -> Iterator[FuncDef]:
+def _transform_func_defs(sigs: Iterable[FunctionSig]) -> Iterator[FunctionSig]:
     """Apply transformations recursively."""
-    sigs = chain.from_iterable(map(transform_copy_func_def, func_defs))
+    sigs = chain.from_iterable(map(transform_copy_func_def, sigs))
     return sigs  # noqa: RET504
 
 
-def transform_copy_func_def(func_def: FuncDef) -> Generator[FuncDef, None, None]:
+def transform_copy_func_def(sig: FunctionSig) -> Generator[FunctionSig, None, None]:
     """Transform a scanpy copy function definition into overloaded function definitions.
 
     E.g. the following definition
@@ -43,33 +40,29 @@ def transform_copy_func_def(func_def: FuncDef) -> Generator[FuncDef, None, None]
        @overload
        def x(adata: AnnData, *, copy: Literal[False] = False) -> None: ...
     """
-    if not _check_copy_param(func_def) or func_def.return_annotation != "AnnData | None":
-        yield func_def
+    if not _check_copy_param(sig) or sig.ret_type != "AnnData | None":
+        yield sig
         return
 
-    yield sig.replace(
-        parameters=_with_param(sig, "copy", annotation=Literal[True], default=Parameter.empty),
-        return_annotation="AnnData",
+    yield FunctionSig(
+        sig.name,
+        _with_arg(sig, "copy", type="Literal[True]", default=False),  # default=empty
+        "AnnData",
+    )
+    yield FunctionSig(
+        sig.name,
+        _with_arg(sig, "copy", type="Literal[False]", default=True),  # default="False"
+        "None",
     )
 
-    yield sig.replace(
-        parameters=_with_param(sig, "copy", annotation=Literal[False], default=False),
-        return_annotation="None",
-    )
 
-
-def _check_copy_param(func_def: FuncDef) -> bool:
-    copy_param = next((arg for arg in func_def.arguments if arg.variable.name == "copy"), None)
-    if copy_param is None or not isinstance(copy_param.initializer, NameExpr) or copy_param.initializer.name != "False":
+def _check_copy_param(sig: FunctionSig) -> bool:
+    copy_param = next((arg for arg in sig.args if arg.name == "copy"), None)
+    # TODO: check that default is False
+    if copy_param is None or not copy_param.default:
         return False
-    type_annot = get_proper_type(copy_param.type_annotation)
-    if type_annot is None or not isinstance(type_annot, UnboundType) or type_annot.name != "bool":
-        return False
-    return True
+    return copy_param.type == "bool"
 
 
-def _with_param(sig: Signature, name: str, *, annotation: Any, default: Any) -> list[Parameter]:  # noqa: ANN401
-    return [
-        param.replace(annotation=annotation, default=default) if param.name == name else param
-        for param in sig.parameters.values()
-    ]
+def _with_arg(sig: FunctionSig, name: str, *, type: Any, default: bool) -> list[ArgSig]:  # noqa: ANN401, A002
+    return [ArgSig(name, type, default) if arg.name == name else arg for arg in sig.args]

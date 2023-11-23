@@ -6,6 +6,7 @@ from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from mypy.nodes import NOT_ABSTRACT
 from mypy.stubgen import (
     ASTStubGenerator,
     Options,
@@ -15,7 +16,7 @@ from mypy.stubgen import (
     generate_asts_for_modules,
     mypy_options,
 )
-from mypy.stubutil import common_dir_prefix, generate_guarded
+from mypy.stubutil import FunctionContext, common_dir_prefix, generate_guarded
 
 from .transform import transform_func_def
 
@@ -30,10 +31,30 @@ class TransformingStubGenerator(ASTStubGenerator):
 
     def visit_func_def(self, o: FuncDef) -> None:
         """Transform function definition into stub."""
-        if overloaded_def := transform_func_def(o):
-            super().visit_overloaded_func_def(overloaded_def)
-        else:
+        ctx = FunctionContext(
+            module_name=self.module_name,
+            name=o.name,
+            docstring=self._get_func_docstring(o),
+            is_abstract=o.abstract_status != NOT_ABSTRACT,
+            class_info=None,  # TODO
+        )
+
+        self.record_name(o.name)
+
+        default_sig = self.get_default_function_sig(o, ctx)
+        sigs_orig = self.get_signatures(default_sig, self.sig_generators, ctx)
+
+        if (sigs := transform_func_def(sigs_orig)) is None:
             super().visit_func_def(o)
+            return
+
+        for output in self.format_func_def(
+            sigs,
+            is_coroutine=o.is_coroutine,
+            decorators=[*self._decorators, "@overload"],
+            docstring=ctx.docstring,
+        ):
+            self.add(output + "\n")
 
 
 def mod2path(mod: StubSource) -> Path:

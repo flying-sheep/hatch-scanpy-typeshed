@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 def test_copy(tmp_path: Path) -> None:
     src = dedent(
         """\
+        from anndata import AnnData
+
         def example(adata: AnnData, *, copy: bool = False) -> AnnData | None:
             print(copy)
         """,
@@ -39,7 +41,7 @@ def test_copy(tmp_path: Path) -> None:
         from __future__ import annotations
 
         import typing
-        from anndata import AnnData
+        from anndata import AnnData as AnnData
 
         @overload
         def example(
