@@ -44,14 +44,14 @@ def transform_copy_func_def(sig: FunctionSig) -> Generator[FunctionSig, None, No
         yield sig
         return
 
-    yield FunctionSig(
+    yield _DefaultFunctionSig(
         sig.name,
-        _with_arg(sig, "copy", type="Literal[True]", default=False),  # default=empty
+        _with_arg(sig, "copy", type="Literal[True]", default_value=None),
         "AnnData",
     )
-    yield FunctionSig(
+    yield _DefaultFunctionSig(
         sig.name,
-        _with_arg(sig, "copy", type="Literal[False]", default=True),  # default="False"
+        _with_arg(sig, "copy", type="Literal[False]", default_value="False"),
         "None",
     )
 
@@ -64,5 +64,79 @@ def _check_copy_param(sig: FunctionSig) -> bool:
     return copy_param.type == "bool"
 
 
-def _with_arg(sig: FunctionSig, name: str, *, type: Any, default: bool) -> list[ArgSig]:  # noqa: ANN401, A002
-    return [ArgSig(name, type, default) if arg.name == name else arg for arg in sig.args]
+def _with_arg(sig: FunctionSig, name: str, *, type: Any, default_value: str | None) -> list[ArgSig]:  # noqa: ANN401, A002
+    return [_DefaultArgSig(name, type, default_value) if arg.name == name else arg for arg in sig.args]
+
+
+class _DefaultArgSig(ArgSig):
+    default_value: str | None
+
+    def __init__(self, name: str, type: str | None = None, default_value: str | None = None) -> None:  # noqa: A002
+        self.name = name
+        self.type = type
+        self.default_value = default_value
+
+    @property
+    def default(self) -> bool:
+        return self.default_value is not None
+
+
+class _DefaultFunctionSig(FunctionSig):
+    args: list[_DefaultArgSig | ArgSig]
+
+    def format_sig(
+        self,
+        indent: str = "",
+        is_async: bool = False,  # noqa: FBT001, FBT002
+        any_val: str | None = None,
+        docstring: str | None = None,
+    ) -> str:
+        """Copy of the super method, but able to format defaults."""
+        import keyword
+
+        from mypy.util import quote_docstring
+
+        args: list[str] = []
+        for arg in self.args:
+            arg_def = arg.name
+
+            if arg_def in keyword.kwlist:
+                arg_def = f"_{arg_def}"
+
+            if (
+                arg.type is None
+                and any_val is not None
+                and arg.name not in ("self", "cls")
+                and not arg.name.startswith("*")
+            ):
+                arg_type: str | None = any_val
+            else:
+                arg_type = arg.type
+            if arg_type:
+                arg_def += f": {arg_type}"
+                if arg.default:
+                    arg_def += " = "
+            elif arg.default:
+                arg_def += "="
+            if isinstance(arg, _DefaultArgSig) and arg.default_value is not None:
+                arg_def += arg.default_value
+            elif arg.default:
+                arg_def += "..."
+
+            args.append(arg_def)
+
+        retfield = ""
+        ret_type = self.ret_type if self.ret_type else any_val
+        if ret_type is not None:
+            retfield = f" -> {ret_type}"
+
+        prefix = "async " if is_async else ""
+        sig = "{indent}{prefix}def {name}({args}){ret}:".format(
+            indent=indent,
+            prefix=prefix,
+            name=self.name,
+            args=", ".join(args),
+            ret=retfield,
+        )
+        suffix = f"\n{indent}    {quote_docstring(docstring)}" if docstring else " ..."
+        return f"{sig}{suffix}"
