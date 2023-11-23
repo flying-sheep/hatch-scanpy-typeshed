@@ -38,24 +38,12 @@ def test_copy(tmp_path: Path) -> None:
     assert lines, "Empty stub"
     expected = dedent(
         """\
-        from __future__ import annotations
-
-        import typing
         from anndata import AnnData as AnnData
 
         @overload
-        def example(
-            adata: AnnData,
-            *,
-            copy: typing.Literal[True],
-        ) -> AnnData: ...
-
+        def example(adata: AnnData, *, copy: Literal[True]) -> AnnData: ...
         @overload
-        def example(
-            adata: AnnData,
-            *,
-            copy: typing.Literal[False] = False,
-        ) -> None: ...
+        def example(adata: AnnData, *, copy: Literal[False] = False) -> None: ...
         """,
     ).splitlines()
     assert lines == expected
