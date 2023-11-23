@@ -63,6 +63,8 @@ ignore = [
     "C408",
     # Mutually exclusive checks
     "D203", "D213",
+    # No authors necessary
+    "TD002",
     # TODO comments are OK
     "FIX002",
     # I know how to use asserts
@@ -71,6 +73,9 @@ ignore = [
     "S105", "S106", "S107",
 ]
 allowed-confusables = ["’", "×"]
+
+[tool.ruff.lint.pylint]
+max-args = 6
 
 [tool.ruff.isort]
 known-first-party = ["hatch_scanpy_typeshed"]

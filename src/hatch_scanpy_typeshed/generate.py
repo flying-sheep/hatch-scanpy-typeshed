@@ -36,7 +36,7 @@ class TransformingStubGenerator(ASTStubGenerator):
             name=o.name,
             docstring=self._get_func_docstring(o),
             is_abstract=o.abstract_status != NOT_ABSTRACT,
-            class_info=None,  # TODO
+            class_info=None,  # We could maybe support classes here?
         )
 
         self.record_name(o.name)
