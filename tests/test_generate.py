@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from mypy.stubgen import StubSource, generate_asts_for_modules, mypy_options, parse_options
 
-from hatch_scanpy_typeshed.generate import generate_stub_from_ast
+from hatch_scanpy_typeshed.generate import generate_stub_for_py_module
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -31,8 +31,8 @@ def test_copy(tmp_path: Path) -> None:
     assert mod.ast
     assert "example" in mod.ast.names, "Module was not analyzed"
 
-    generate_stub_from_ast(mod, pyi_path := path.with_suffix(".pyi"))
-    lines = pyi_path.read_text().splitlines()[1:]
+    generate_stub_for_py_module(mod, pyi_path := path.with_suffix(".pyi"))
+    lines = pyi_path.read_text().splitlines()
     assert lines, "Empty stub"
     expected = dedent(
         """\

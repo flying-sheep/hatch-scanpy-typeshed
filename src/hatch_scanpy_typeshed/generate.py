@@ -45,13 +45,14 @@ def mod2path(mod: StubSource) -> Path:
     return target.with_suffix(".pyi")
 
 
-def generate_stub_from_ast(
+def generate_stub_for_py_module(
     mod: StubSource,
     target: Path,
     *,
     parse_only: bool = False,
     include_private: bool = False,
     export_less: bool = False,
+    include_docstrings: bool = False,
 ) -> None:
     """Use AST to generate type stub for single file."""
     gen = TransformingStubGenerator(
@@ -59,6 +60,7 @@ def generate_stub_from_ast(
         include_private=include_private,
         analyzed=not parse_only,
         export_less=export_less,
+        include_docstrings=include_docstrings,
     )
     assert mod.ast is not None, "This function must be used only with analyzed modules"
     find_defined_names(mod.ast)
@@ -66,7 +68,7 @@ def generate_stub_from_ast(
 
     # Write output to file.
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("".join(gen.output()))
+    target.write_text(gen.output())
 
 
 def generate_stubs(options: Options) -> None:
@@ -76,13 +78,14 @@ def generate_stubs(options: Options) -> None:
     generate_asts_for_modules(py_modules, options.parse_only, mypy_opts, options.verbose)
     files = {mod: Path(options.output_dir) / mod2path(mod) for mod in py_modules}
     for mod, target in files.items():
-        with generate_guarded(mod.module, str(target), options.ignore_errors, options.verbose):
-            generate_stub_from_ast(
+        with generate_guarded(mod.module, str(target), ignore_errors=options.ignore_errors, verbose=options.verbose):
+            generate_stub_for_py_module(
                 mod,
                 target,
                 parse_only=options.parse_only,
                 include_private=options.include_private,
                 export_less=options.export_less,
+                include_docstrings=options.include_docstrings,
             )
 
     num_modules = len(py_modules)
