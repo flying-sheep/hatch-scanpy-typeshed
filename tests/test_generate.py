@@ -33,8 +33,7 @@ def test_copy(tmp_path: Path) -> None:
     assert mod.ast
     assert "example" in mod.ast.names, "Module was not analyzed"
 
-    generate_stub_for_py_module(mod, pyi_path := path.with_suffix(".pyi"))
-    lines = pyi_path.read_text().splitlines()
+    lines = generate_stub_for_py_module(mod).splitlines()
     assert lines, "Empty stub"
     expected = dedent(
         """\

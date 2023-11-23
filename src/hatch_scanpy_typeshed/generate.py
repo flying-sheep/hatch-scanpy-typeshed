@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 from mypy.nodes import NOT_ABSTRACT
 from mypy.stubgen import (
@@ -66,6 +66,20 @@ def mod2path(mod: StubSource) -> Path:
     return target.with_suffix(".pyi")
 
 
+@overload
+def generate_stub_for_py_module(
+    mod: StubSource,
+    target: None = None,
+    *,
+    parse_only: bool = False,
+    include_private: bool = False,
+    export_less: bool = False,
+    include_docstrings: bool = False,
+) -> str:
+    ...
+
+
+@overload
 def generate_stub_for_py_module(
     mod: StubSource,
     target: Path,
@@ -75,6 +89,18 @@ def generate_stub_for_py_module(
     export_less: bool = False,
     include_docstrings: bool = False,
 ) -> None:
+    ...
+
+
+def generate_stub_for_py_module(
+    mod: StubSource,
+    target: Path | None = None,
+    *,
+    parse_only: bool = False,
+    include_private: bool = False,
+    export_less: bool = False,
+    include_docstrings: bool = False,
+) -> str | None:
     """Use AST to generate type stub for single file."""
     gen = TransformingStubGenerator(
         mod.runtime_all,
@@ -87,9 +113,13 @@ def generate_stub_for_py_module(
     find_defined_names(mod.ast)
     mod.ast.accept(gen)
 
-    # Write output to file.
+    output = gen.output()
+    if target is None:
+        return output
+    # Write output to file or return.
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(gen.output())
+    target.write_text(output)
+    return None
 
 
 def generate_stubs(options: Options) -> None:
