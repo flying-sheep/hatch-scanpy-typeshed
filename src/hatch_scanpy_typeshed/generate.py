@@ -35,9 +35,12 @@ logger = getLogger(__name__)
 class TransformingStubGenerator(ASTStubGenerator):
     """Stub generator that transforms signatures."""
 
+    did_transform: bool
+
     def __init__(self, *args, **kwargs) -> None:  # noqa: D107, ANN002, ANN003
         super().__init__(*args, **kwargs)
         self.import_tracker = PrettyImportTracker()
+        self.did_transform = False
 
     def visit_func_def(self, o: FuncDef) -> None:
         """Transform function definition into stub."""
@@ -70,6 +73,7 @@ class TransformingStubGenerator(ASTStubGenerator):
         # end of copied code
 
         if len(sigs) > 1:
+            self.did_transform = True
             self.import_tracker.add_import_from(
                 "typing",
                 [("Literal", "Literal"), ("overload", "overload")],
@@ -142,7 +146,11 @@ def generate_stub_for_py_module(
     export_less: bool = False,
     include_docstrings: bool = False,
 ) -> str | None:
-    """Use AST to generate type stub for single file."""
+    """Use AST to generate type stub for single file.
+
+    If target is None, return output as string.
+    Otherwise, if transformations were made, write output to file.
+    """
     gen = TransformingStubGenerator(
         mod.runtime_all,
         include_private=include_private,
@@ -157,9 +165,10 @@ def generate_stub_for_py_module(
     output = gen.output()
     if target is None:
         return output
-    # Write output to file or return.
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(output)
+    if gen.did_transform:
+        # Write output to file
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(output)
     return None
 
 
