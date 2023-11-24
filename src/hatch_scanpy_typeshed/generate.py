@@ -7,7 +7,7 @@ import sys
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, overload
-from warnings import catch_warnings, warn
+from warnings import catch_warnings, simplefilter, warn
 
 from mypy.nodes import NOT_ABSTRACT
 from mypy.stubgen import (
@@ -161,7 +161,8 @@ def generate_stub_for_py_module(
     )
     assert mod.ast is not None, "This function must be used only with analyzed modules"
     find_defined_names(mod.ast)
-    with catch_warnings(record=True, action="always", category=PosArgWarning) as warnings:
+    with catch_warnings(record=True) as warnings:
+        simplefilter(action="always", category=PosArgWarning)
         mod.ast.accept(gen)
         msg = None
         if func_names := [
