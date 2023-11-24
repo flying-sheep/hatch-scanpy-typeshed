@@ -3,10 +3,42 @@ hatch-scanpy-typeshed
 
 |PyPI Version| |PyPI Python Version| |Coverage|
 
+What does it do?
+----------------
+
+For functions using keyword-only arguments (``*, copy: ...``),
+it is able to clear up the function signature for ``copy``,
+telling type checkers that a function returns ``None`` precisely when ``copy=False``,
+and otherwise an ``AnnData`` instance.
+
+E.g. when run on scanpy’s ``tl._score_genes`` module, it creates a ``.pyi`` file like this:
+
+.. code:: python
+
+   from collections.abc import Sequence
+   from typing import Literal, overload
+   from anndata import AnnData
+   from .._utils import AnyRandom
+
+   def score_genes(
+       adata: AnnData, gene_list: Sequence[str], ctrl_size: int = ..., gene_pool: Sequence[str] | None = ...,
+       n_bins: int = ..., score_name: str = ..., random_state: AnyRandom = ..., copy: bool = ..., use_raw: bool | None = ...,
+   ) -> AnnData | None: ...
+   @overload
+   def score_genes_cell_cycle(adata: AnnData, s_genes: Sequence[str], g2m_genes: Sequence[str], copy: Literal[True], **kwargs) -> AnnData: ...
+   @overload
+   def score_genes_cell_cycle(adata: AnnData, s_genes: Sequence[str], g2m_genes: Sequence[str], copy: Literal[False] = False, **kwargs) -> None: ...
+
+Together with (at the time of writing) a warning about a function that has not been converted to kw-only arguments yet:
+
+.. code:: pytb
+
+   UserWarning: Parameter 'copy' must be a keyword-only argument in scanpy.tools._score_genes function score_genes
+
 Usage
 -----
 
-Include it as a plugin to your ``pyproject.toml``:
+The plan is to soon include it as a plugin to a scanpy-like API’s ``pyproject.toml``:
 
 .. code:: toml
 
