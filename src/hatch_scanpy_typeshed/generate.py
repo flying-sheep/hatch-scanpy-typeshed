@@ -49,8 +49,6 @@ class TransformingStubGenerator(ASTStubGenerator):
             class_info=None,  # We could maybe support classes here?
         )
 
-        self.record_name(o.name)
-
         default_sig = self.get_default_function_sig(o, ctx)
         sigs_orig = self.get_signatures(default_sig, self.sig_generators, ctx)
 
@@ -58,9 +56,19 @@ class TransformingStubGenerator(ASTStubGenerator):
             super().visit_func_def(o)
             return
 
+        # This part is copied from visit_func_def
+        if (
+            self.is_private_name(o.name, o.fullname)
+            or self.is_not_in_all(o.name)
+            or (self.is_recorded_name(o.name) and not o.is_overload)
+        ):
+            self.clear_decorators()
+            return
         if self.is_top_level() and self._state not in (EMPTY, FUNC):
             self.add("\n")
         self.record_name(o.name)
+        # end of copied code
+
         if len(sigs) > 1:
             self.import_tracker.add_import_from(
                 "typing",
@@ -68,7 +76,7 @@ class TransformingStubGenerator(ASTStubGenerator):
                 require=True,
             )
             self.add_decorator("overload")
-        # Set o.func.is_overload = True
+        # Set o.func.is_overload = True?
 
         for line in self.format_func_def(
             sigs,
@@ -78,6 +86,7 @@ class TransformingStubGenerator(ASTStubGenerator):
         ):
             self.add(f"{line}\n")
 
+        # This part is copied again
         self.clear_decorators()
         self._state = FUNC
 

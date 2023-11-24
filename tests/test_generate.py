@@ -21,6 +21,8 @@ if TYPE_CHECKING:
             """\
             from anndata import AnnData
 
+            __all__ = ["example"]
+
             def example(adata: AnnData, *, copy: bool = False) -> AnnData | None:
                 print(copy)
             """,
@@ -38,6 +40,8 @@ if TYPE_CHECKING:
         pytest.param(
             """\
             from anndata import AnnData
+
+            __all__ = ["example"]
 
             def example(adata: AnnData) -> AnnData | None:
                 print(adata)
