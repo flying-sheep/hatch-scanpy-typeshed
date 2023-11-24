@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.parametrize(
-    ("code", "expected"),
+    ("code", "transformed", "expect_transformed"),
     [
         pytest.param(
             """\
@@ -35,6 +35,7 @@ if TYPE_CHECKING:
             @overload
             def example(adata: AnnData, *, copy: Literal[False] = False) -> None: ...
             """,
+            True,
             id="copy",
         ),
         pytest.param(
@@ -51,11 +52,12 @@ if TYPE_CHECKING:
 
             def example(adata: AnnData) -> AnnData | None: ...
             """,
+            False,
             id="no_copy",
         ),
     ],
 )
-def test_copy(tmp_path: Path, code: str, expected: str) -> None:
+def test_copy(*, tmp_path: Path, code: str, transformed: str, expect_transformed: bool) -> None:
     src = dedent(code)
     path = tmp_path / "example_mod.py"
     path.write_text(src)
@@ -68,6 +70,7 @@ def test_copy(tmp_path: Path, code: str, expected: str) -> None:
     assert mod.ast
     assert "example" in mod.ast.names, "Module was not analyzed"
 
-    lines = generate_stub_for_py_module(mod).splitlines()
-    assert lines, "Empty stub"
-    assert lines == dedent(expected).splitlines()
+    lines, did_transform = generate_stub_for_py_module(mod)
+    assert lines.strip(), "Empty stub"
+    assert lines.splitlines() == dedent(transformed).splitlines()
+    assert did_transform == expect_transformed

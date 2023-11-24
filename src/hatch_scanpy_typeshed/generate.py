@@ -120,7 +120,7 @@ def generate_stub_for_py_module(
     include_private: bool = False,
     export_less: bool = False,
     include_docstrings: bool = False,
-) -> str:
+) -> tuple[str, bool]:
     ...
 
 
@@ -145,10 +145,10 @@ def generate_stub_for_py_module(
     include_private: bool = False,
     export_less: bool = False,
     include_docstrings: bool = False,
-) -> str | None:
+) -> tuple[str, bool] | None:
     """Use AST to generate type stub for single file.
 
-    If target is None, return output as string.
+    If target is None, return output as string and a flag indicating whether transformations were made.
     Otherwise, if transformations were made, write output to file.
     """
     gen = TransformingStubGenerator(
@@ -164,7 +164,7 @@ def generate_stub_for_py_module(
 
     output = gen.output()
     if target is None:
-        return output
+        return output, gen.did_transform
     if gen.did_transform:
         # Write output to file
         target.parent.mkdir(parents=True, exist_ok=True)
