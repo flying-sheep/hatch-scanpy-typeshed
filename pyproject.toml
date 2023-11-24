@@ -21,7 +21,13 @@ classifiers = [
     "Framework :: Hatch",
     "Typing :: Typed",
 ]
-dependencies = ["hatchling"]
+dependencies = [
+    "hatchling",
+    "mypy",
+]
+
+[project.scripts]
+scanpy-stubgen = "hatch_scanpy_typeshed.generate:main"
 
 [project.entry-points.hatch]
 scanpy-builder = "hatch_scanpy_typeshed.hooks"
@@ -50,6 +56,16 @@ cov = [
 [[tool.hatch.envs.all.matrix]]
 python = ["3.9", "3.10", "3.11", "3.12"]
 
+[tool.pytest.ini_options]
+xfail_strict = true
+addopts = [
+    "--import-mode=importlib",
+    "--strict-markers",
+]
+filterwarnings = [
+    "error",
+]
+
 [tool.ruff]
 line-length = 120
 select = ["ALL"]
@@ -60,12 +76,19 @@ ignore = [
     "C408",
     # Mutually exclusive checks
     "D203", "D213",
+    # No authors necessary
+    "TD002",
     # TODO comments are OK
     "FIX002",
+    # I know how to use asserts
+    "S101",
     # Ignore checks for possible passwords
     "S105", "S106", "S107",
 ]
 allowed-confusables = ["’", "×"]
+
+[tool.ruff.lint.pylint]
+max-args = 6
 
 [tool.ruff.isort]
 known-first-party = ["hatch_scanpy_typeshed"]
@@ -75,7 +98,6 @@ known-first-party = ["hatch_scanpy_typeshed"]
     "ARG001", # fixtures can look like unused parameters
     "D103", # test functions don’t need docstrings
     "INP001", # test directories shouldn’t contain __init__.py
-    "S101", # tests can use magic values
 ]
 
 [tool.coverage.run]
