@@ -61,7 +61,7 @@ class TransformingStubGenerator(ASTStubGenerator):
         if self.is_top_level() and self._state not in (EMPTY, FUNC):
             self.add("\n")
         self.record_name(o.name)
-        if len(sigs) >= 1:
+        if len(sigs) > 1:
             self.import_tracker.add_import_from(
                 "typing",
                 [("Literal", "Literal"), ("overload", "overload")],
