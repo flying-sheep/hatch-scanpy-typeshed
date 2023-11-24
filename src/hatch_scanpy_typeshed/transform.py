@@ -2,13 +2,25 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from itertools import chain
 from typing import TYPE_CHECKING, Any
+from warnings import warn
 
 from mypy.stubdoc import ArgSig, FunctionSig
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator
+
+
+@dataclass
+class PosArgWarning(UserWarning):
+    """Warning raised if `copy` parameter is positional."""
+
+    func_name: str
+
+    def __str__(self) -> str:  # noqa: D105
+        return f"Parameter 'copy' must be a keyword-only argument in function {self.func_name}"
 
 
 def transform_func_def(sigs: Iterable[FunctionSig]) -> list[FunctionSig] | None:
@@ -57,11 +69,18 @@ def transform_copy_func_def(sig: FunctionSig) -> Generator[FunctionSig, None, No
 
 
 def _check_copy_param(sig: FunctionSig) -> bool:
-    copy_param = next((arg for arg in sig.args if arg.name == "copy"), None)
+    i, copy_param = next(enumerate(arg for arg in sig.args if arg.name == "copy"), (-1, None))
     # TODO: check that default is False
+    # https://github.com/flying-sheep/hatch-scanpy-typeshed/issues/2
     if copy_param is None or not copy_param.default:
         return False
-    return copy_param.type == "bool"
+    if copy_param.type != "bool":
+        return False
+    star_i = next((i for i, arg in enumerate(sig.args) if arg.is_star_arg() or arg.is_star_kwarg()), -1)
+    if i > star_i:
+        warn(sig.name, PosArgWarning, stacklevel=2)
+        return False
+    return True
 
 
 def _with_arg(sig: FunctionSig, name: str, *, type: Any, default_value: str | None) -> list[ArgSig]:  # noqa: ANN401, A002

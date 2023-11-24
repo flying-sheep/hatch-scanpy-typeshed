@@ -56,6 +56,16 @@ cov = [
 [[tool.hatch.envs.all.matrix]]
 python = ["3.9", "3.10", "3.11", "3.12"]
 
+[tool.pytest.ini_options]
+xfail_strict = true
+addopts = [
+    "--import-mode=importlib",
+    "--strict-markers",
+]
+filterwarnings = [
+    "error",
+]
+
 [tool.ruff]
 line-length = 120
 select = ["ALL"]

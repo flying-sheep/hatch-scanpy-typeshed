@@ -7,6 +7,7 @@ import sys
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, overload
+from warnings import catch_warnings, warn
 
 from mypy.nodes import NOT_ABSTRACT
 from mypy.stubgen import (
@@ -24,7 +25,7 @@ from mypy.stubgen import (
 from mypy.stubutil import FunctionContext, ImportTracker, common_dir_prefix, generate_guarded
 from mypy.util import check_python_version
 
-from .transform import transform_func_def
+from .transform import PosArgWarning, transform_func_def
 
 if TYPE_CHECKING:
     from mypy.nodes import FuncDef
@@ -160,7 +161,19 @@ def generate_stub_for_py_module(
     )
     assert mod.ast is not None, "This function must be used only with analyzed modules"
     find_defined_names(mod.ast)
-    mod.ast.accept(gen)
+    with catch_warnings(record=True, action="always", category=PosArgWarning) as warnings:
+        mod.ast.accept(gen)
+        msg = None
+        if func_names := [
+            w.message.func_name if isinstance(w.message, PosArgWarning) else str(w.message)
+            for w in warnings
+            if issubclass(w.category, PosArgWarning)
+        ]:
+            s = "" if len(func_names) == 1 else "s"
+            qualnames = ", ".join(func_names)
+            msg = f"Parameter 'copy' must be a keyword-only argument in {mod.module} function{s} {qualnames}"
+    if msg is not None:
+        warn(msg, UserWarning, stacklevel=2)
 
     output = gen.output()
     if target is None:

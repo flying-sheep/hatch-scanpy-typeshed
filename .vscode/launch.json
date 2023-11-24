@@ -2,7 +2,17 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Run on Scanpy",
+            "type": "python",
+            "request": "launch",
+            "module": "hatch_scanpy_typeshed",
+            "args": ["${workspaceFolder}/../../Single Cell/scanpy/scanpy/"],
+            "justMyCode": false,
+            "console": "internalConsole",
+        },
+        {
             "name": "Test Configuration",
+            "presentation": { "hidden": true },
             "type": "python",
             "request": "launch",
             "purpose": ["debug-test"],
