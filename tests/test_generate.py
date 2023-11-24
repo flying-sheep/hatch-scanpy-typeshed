@@ -37,7 +37,8 @@ def test_copy(tmp_path: Path) -> None:
     assert lines, "Empty stub"
     expected = dedent(
         """\
-        from anndata import AnnData as AnnData
+        from anndata import AnnData
+        from typing import Literal, overload
 
         @overload
         def example(adata: AnnData, *, copy: Literal[True]) -> AnnData: ...

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from logging import getLogger
 from pathlib import Path
@@ -9,6 +10,8 @@ from typing import TYPE_CHECKING, overload
 
 from mypy.nodes import NOT_ABSTRACT
 from mypy.stubgen import (
+    EMPTY,
+    FUNC,
     ASTStubGenerator,
     Options,
     StubSource,
@@ -18,7 +21,7 @@ from mypy.stubgen import (
     mypy_options,
     parse_options,
 )
-from mypy.stubutil import FunctionContext, common_dir_prefix, generate_guarded
+from mypy.stubutil import FunctionContext, ImportTracker, common_dir_prefix, generate_guarded
 from mypy.util import check_python_version
 
 from .transform import transform_func_def
@@ -31,6 +34,10 @@ logger = getLogger(__name__)
 
 class TransformingStubGenerator(ASTStubGenerator):
     """Stub generator that transforms signatures."""
+
+    def __init__(self, *args, **kwargs) -> None:  # noqa: D107, ANN002, ANN003
+        super().__init__(*args, **kwargs)
+        self.import_tracker = PrettyImportTracker()
 
     def visit_func_def(self, o: FuncDef) -> None:
         """Transform function definition into stub."""
@@ -51,13 +58,35 @@ class TransformingStubGenerator(ASTStubGenerator):
             super().visit_func_def(o)
             return
 
-        for output in self.format_func_def(
+        if self.is_top_level() and self._state not in (EMPTY, FUNC):
+            self.add("\n")
+        self.record_name(o.name)
+        if len(sigs) >= 1:
+            self.import_tracker.add_import_from(
+                "typing",
+                [("Literal", "Literal"), ("overload", "overload")],
+                require=True,
+            )
+            self.add_decorator("overload")
+        # Set o.func.is_overload = True
+
+        for line in self.format_func_def(
             sigs,
             is_coroutine=o.is_coroutine,
-            decorators=[*self._decorators, *(["@overload"] if len(sigs) > 1 else [])],
+            decorators=self._decorators,
             docstring=ctx.docstring,
         ):
-            self.add(output + "\n")
+            self.add(f"{line}\n")
+
+        self.clear_decorators()
+        self._state = FUNC
+
+
+class PrettyImportTracker(ImportTracker):
+    """Import tracker that collapses identical names and aliases."""
+
+    def import_lines(self) -> list[str]:  # noqa: D102
+        return [re.sub(r"\b([\w]+) as \1\b", r"\1", line) for line in super().import_lines()]
 
 
 def mod2path(mod: StubSource) -> Path:
