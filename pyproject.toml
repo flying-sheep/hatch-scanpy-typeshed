@@ -26,6 +26,9 @@ dependencies = [
     "mypy",
 ]
 
+[project.scripts]
+scanpy-stubgen = "hatch_scanpy_typeshed.generate:main"
+
 [project.entry-points.hatch]
 scanpy-builder = "hatch_scanpy_typeshed.hooks"
 

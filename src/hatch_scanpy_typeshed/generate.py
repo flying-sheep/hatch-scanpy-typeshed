@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, overload
@@ -15,8 +16,10 @@ from mypy.stubgen import (
     find_defined_names,
     generate_asts_for_modules,
     mypy_options,
+    parse_options,
 )
 from mypy.stubutil import FunctionContext, common_dir_prefix, generate_guarded
+from mypy.util import check_python_version
 
 from .transform import transform_func_def
 
@@ -51,7 +54,7 @@ class TransformingStubGenerator(ASTStubGenerator):
         for output in self.format_func_def(
             sigs,
             is_coroutine=o.is_coroutine,
-            decorators=[*self._decorators, "@overload"],
+            decorators=[*self._decorators, *(["@overload"] if len(sigs) > 1 else [])],
             docstring=ctx.docstring,
         ):
             self.add(output + "\n")
@@ -146,3 +149,11 @@ def generate_stubs(options: Options) -> None:
             logger.info("Generated %s", next(iter(files)))
         else:
             logger.info("Generated files under %s", common_dir_prefix([str(target) for target in files]))
+
+
+def main(args: list[str] | None = None) -> None:
+    """Command line interface."""
+    check_python_version("stubgen")
+
+    options = parse_options(sys.argv[1:] if args is None else args)
+    generate_stubs(options)
