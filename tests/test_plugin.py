@@ -50,7 +50,7 @@ def test_load_plugin() -> None:
 def test_basic(basic_project: Path) -> None:
     hook = mk_hook(basic_project)
     version_api = hook.get_version_api()
-    assert version_api.keys() == {"1.0"}
+    assert version_api.keys() == {"in-tree"}
     # TODO: implement
     # https://github.com/flying-sheep/hatch-scanpy-typeshed/issues/3
     pytest.xfail("TODO")
