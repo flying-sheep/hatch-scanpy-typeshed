@@ -101,7 +101,7 @@ class _DefaultArgSig(ArgSig):
         return self.default_value is not None
 
     @default.setter
-    def default(self, value: bool) -> Never:
+    def default(self, value: bool) -> Never:  # pragma: no cover
         msg = f"cannot set default to {value}"
         raise RuntimeError(msg)
 
