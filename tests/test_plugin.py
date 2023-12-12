@@ -32,12 +32,13 @@ def get_hook_cls() -> type[ScanpyBuildHook]:
     pm = PluginManager()
     pm.metadata_hook.collect(include_third_party=True)
     plugin = pm.manager.get_plugin("scanpy-builder")
-    return plugin.hatch_register_build_hook()
+    assert plugin is not None
+    return plugin.hatch_register_build_hook()  # type: ignore[no-any-return]
 
 
 def mk_hook(project_path: Path) -> ScanpyBuildHook:
     hook_cls = get_hook_cls()
-    return hook_cls(project_path, {})
+    return hook_cls(str(project_path))
 
 
 def test_load_plugin() -> None:
