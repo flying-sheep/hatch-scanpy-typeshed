@@ -38,7 +38,7 @@ class TransformingStubGenerator(ASTStubGenerator):
 
     did_transform: bool
 
-    def __init__(self, *args, **kwargs) -> None:  # noqa: D107, ANN002, ANN003
+    def __init__(self, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]  # noqa: D107, ANN002, ANN003
         super().__init__(*args, **kwargs)
         self.import_tracker = PrettyImportTracker()
         self.did_transform = False

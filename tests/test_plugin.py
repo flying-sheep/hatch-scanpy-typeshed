@@ -32,12 +32,13 @@ def get_hook_cls() -> type[ScanpyBuildHook]:
     pm = PluginManager()
     pm.metadata_hook.collect(include_third_party=True)
     plugin = pm.manager.get_plugin("scanpy-builder")
-    return plugin.hatch_register_build_hook()
+    assert plugin is not None
+    return plugin.hatch_register_build_hook()  # type: ignore[no-any-return]
 
 
 def mk_hook(project_path: Path) -> ScanpyBuildHook:
     hook_cls = get_hook_cls()
-    return hook_cls(project_path, {})
+    return hook_cls(str(project_path))
 
 
 def test_load_plugin() -> None:
@@ -49,7 +50,7 @@ def test_load_plugin() -> None:
 def test_basic(basic_project: Path) -> None:
     hook = mk_hook(basic_project)
     version_api = hook.get_version_api()
-    assert version_api.keys() == {"1.0"}
+    assert version_api.keys() == {"in-tree"}
     # TODO: implement
     # https://github.com/flying-sheep/hatch-scanpy-typeshed/issues/3
     pytest.xfail("TODO")

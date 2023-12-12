@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import chain
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from warnings import warn
 
 from mypy.stubdoc import ArgSig, FunctionSig
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator
+    from typing import Any, Never
 
 
 @dataclass
@@ -98,6 +99,11 @@ class _DefaultArgSig(ArgSig):
     @property
     def default(self) -> bool:
         return self.default_value is not None
+
+    @default.setter
+    def default(self, value: bool) -> Never:  # pragma: no cover
+        msg = f"cannot set default to {value}"
+        raise RuntimeError(msg)
 
 
 class _DefaultFunctionSig(FunctionSig):
