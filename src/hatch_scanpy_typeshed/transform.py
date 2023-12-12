@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Never
+from typing import TYPE_CHECKING
 from warnings import warn
 
 from mypy.stubdoc import ArgSig, FunctionSig
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator
+    from typing import Any, Never
 
 
 @dataclass
