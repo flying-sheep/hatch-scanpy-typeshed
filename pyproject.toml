@@ -75,7 +75,7 @@ line-length = 120
 select = ["ALL"]
 ignore = [
     # No self types
-    "ANN101",
+    "ANN101", "ANN102",
     # Allow dict() syntax
     "C408",
     # Mutually exclusive checks
