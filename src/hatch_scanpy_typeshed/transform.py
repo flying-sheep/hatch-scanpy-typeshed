@@ -18,10 +18,10 @@ if TYPE_CHECKING:
 class PosArgWarning(UserWarning):
     """Warning raised if `copy` parameter is positional."""
 
-    func_name: str
+    sig: FunctionSig
 
     def __str__(self) -> str:  # noqa: D105
-        return f"Parameter 'copy' must be a keyword-only argument in function {self.func_name}"
+        return f"Parameter 'copy' must be a keyword-only argument in function {self.sig.name}: {self.sig}"
 
 
 def transform_func_def(sigs: Iterable[FunctionSig]) -> list[FunctionSig] | None:
@@ -79,7 +79,7 @@ def _check_copy_param(sig: FunctionSig) -> bool:
         return False
     star_i = next((i for i, arg in enumerate(sig.args) if arg.is_star_arg() or arg.is_star_kwarg()), -1)
     if i > star_i:
-        warn(sig.name, PosArgWarning, stacklevel=2)
+        warn(PosArgWarning(sig), stacklevel=2)
         return False
     return True
 
