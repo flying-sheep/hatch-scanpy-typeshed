@@ -12,7 +12,12 @@ if TYPE_CHECKING:
     from hatch_scanpy_typeshed.plugin import ScanpyBuildHook
 
 
-@pytest.fixture(params=["mypkg/__init__.py", "src/mypkg/__init__.py"])
+@pytest.fixture(
+    params=[
+        pytest.param("mypkg/__init__.py", id="flat"),
+        pytest.param("src/mypkg/__init__.py", id="src"),
+    ],
+)
 def basic_project(request: pytest.FixtureRequest, tmp_path: Path) -> Path:
     project_path = tmp_path / "mypkg"
     project_path.mkdir()  # error if it exists
@@ -24,8 +29,9 @@ def basic_project(request: pytest.FixtureRequest, tmp_path: Path) -> Path:
 
 
 @pytest.fixture()
-def pkgs_dir(basic_project: Path) -> Path:
-    return (basic_project / "src") if (basic_project / "src").is_dir() else basic_project
+def pkg_dir(basic_project: Path) -> Path:
+    pkgs_dir = (basic_project / "src") if (basic_project / "src").is_dir() else basic_project
+    return pkgs_dir / "mypkg"
 
 
 def get_hook_cls() -> type[ScanpyBuildHook]:
@@ -47,10 +53,10 @@ def test_load_plugin() -> None:
     assert get_hook_cls() is ScanpyBuildHook
 
 
-def test_basic(basic_project: Path) -> None:
+def test_basic(basic_project: Path, pkg_dir: Path) -> None:
     hook = mk_hook(basic_project)
     version_api = hook.get_version_api()
-    assert version_api.keys() == {"in-tree"}
-    # TODO: implement
-    # https://github.com/flying-sheep/hatch-scanpy-typeshed/issues/3
-    pytest.xfail("TODO")
+    [(version, build)] = version_api.items()
+    assert version == "in-tree"
+    build(str(basic_project))
+    assert (pkg_dir / "__init__.pyi").is_file()

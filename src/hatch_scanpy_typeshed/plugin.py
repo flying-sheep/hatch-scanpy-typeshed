@@ -43,25 +43,13 @@ class ScanpyBuilderConfig(BuilderConfig):
         if output_dir is None:
             output_dir = build_dir
         output_dir.mkdir(parents=True, exist_ok=True)
-        return stubgen.Options(
-            pyversion=self.get_min_python_version(),
-            no_import=True,
-            inspect=True,
-            doc_dir="",  # the default
-            search_path=[],
-            interpreter=sys.executable,
-            parse_only=False,
-            ignore_errors=False,
-            include_private=False,
-            output_dir=str(output_dir),
-            modules=[],
-            packages=[],
-            files=[str(build_dir)],
-            verbose=False,
-            quiet=False,
-            export_less=False,
-            include_docstrings=True,
-        )
+        options = stubgen.parse_options([])
+        options.pyversion = self.get_min_python_version()
+        options.no_import = True
+        options.interpreter = sys.executable
+        options.output_dir = str(output_dir)
+        options.files = [str(build_dir)]
+        return options
 
 
 class ScanpyBuildHook(BuilderInterface[ScanpyBuilderConfig, PluginManager]):
@@ -85,7 +73,7 @@ class ScanpyBuildHook(BuilderInterface[ScanpyBuilderConfig, PluginManager]):
         """Return mapping of `str` versions to a callable that is used for building."""
         return {"in-tree": self.build_in_tree}
 
-    def build_in_tree(self, build_dir: str, **_build_data: Any) -> str:  # noqa: ANN401
+    def build_in_tree(self, build_dir: Path | str, **_build_data: Any) -> str:  # noqa: ANN401
         """Build files in tree."""
         options = self.config.mypy_stubgen_options(Path(build_dir))
         generate_stubs(options)

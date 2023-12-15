@@ -7,7 +7,7 @@ import sys
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, overload
-from warnings import catch_warnings, simplefilter, warn
+from warnings import warn
 
 from mypy.nodes import NOT_ABSTRACT
 from mypy.stubgen import (
@@ -23,9 +23,9 @@ from mypy.stubgen import (
     parse_options,
 )
 from mypy.stubutil import FunctionContext, ImportTracker, common_dir_prefix, generate_guarded
-from mypy.util import check_python_version
 
 from .transform import PosArgWarning, transform_func_def
+from .warnings import extract_warnings
 
 if TYPE_CHECKING:
     from mypy.nodes import FuncDef
@@ -162,8 +162,7 @@ def generate_stub_for_py_module(
     )
     assert mod.ast is not None, "This function must be used only with analyzed modules"
     find_defined_names(mod.ast)
-    with catch_warnings(record=True) as warnings:
-        simplefilter(action="always", category=PosArgWarning)
+    with extract_warnings(category=PosArgWarning) as warnings:
         mod.ast.accept(gen)
         msg = None
         if sigs := [w.message.sig for w in warnings if isinstance(w.message, PosArgWarning)]:
@@ -174,6 +173,10 @@ def generate_stub_for_py_module(
                 f"Parameter 'copy' must be a keyword-only argument in {mod.module} function{s} {qualnames}:\n"
                 f"{sigs_fmt}"
             )
+    for w in warnings:
+        if w.category is PosArgWarning:
+            continue
+        warn(w.message, category=w.category, stacklevel=2)
     if msg is not None:
         warn(msg, UserWarning, stacklevel=2)
 
@@ -189,6 +192,9 @@ def generate_stub_for_py_module(
 
 def generate_stubs(options: Options) -> None:
     """Generate stubs from collected modules and transform them."""
+    if options.inspect:
+        msg = "inspect mode not supported for scanpy builder"
+        raise NotImplementedError(msg)
     mypy_opts = mypy_options(options)
     py_modules, _, _ = collect_build_targets(options, mypy_opts)
     generate_asts_for_modules(py_modules, options.parse_only, mypy_opts, options.verbose)
@@ -215,7 +221,5 @@ def generate_stubs(options: Options) -> None:
 
 def main(args: list[str] | None = None) -> None:
     """Command line interface."""
-    check_python_version("stubgen")
-
     options = parse_options(sys.argv[1:] if args is None else args)
     generate_stubs(options)
