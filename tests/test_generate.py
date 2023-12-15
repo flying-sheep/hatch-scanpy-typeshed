@@ -34,6 +34,7 @@ if TYPE_CHECKING:
             def example(adata: AnnData, *, copy: Literal[True]) -> AnnData: ...
             @overload
             def example(adata: AnnData, *, copy: Literal[False] = False) -> None: ...
+
             """,
             True,
             id="copy",
@@ -51,6 +52,7 @@ if TYPE_CHECKING:
             from anndata import AnnData
 
             def example(adata: AnnData) -> AnnData | None: ...
+
             """,
             False,
             id="no_copy",
