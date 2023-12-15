@@ -28,6 +28,8 @@ from .transform import PosArgWarning, transform_func_def
 from .warnings import extract_warnings
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from mypy.nodes import FuncDef
 
 logger = getLogger(__name__)
@@ -104,10 +106,17 @@ class PrettyImportTracker(ImportTracker):
         return [re.sub(r"\b([\w]+) as \1\b", r"\1", line) for line in super().import_lines()]
 
 
-def mod2path(mod: StubSource) -> Path:
+def mod2path(mod: StubSource, base_paths: Iterable[Path]) -> Path:
     """Convert module name to path."""
     assert mod.path is not None, "Not found module was not skipped"
-    target = Path(*mod.module.split("."))
+    for bp in base_paths:
+        try:
+            target = Path(mod.path).relative_to(bp)
+            break
+        except ValueError:
+            pass
+    else:
+        target = Path(*mod.module.split("."))
     if Path(mod.path).name == "__init__.py":
         return target / "__init__.pyi"
     return target.with_suffix(".pyi")
@@ -173,10 +182,6 @@ def generate_stub_for_py_module(
                 f"Parameter 'copy' must be a keyword-only argument in {mod.module} function{s} {qualnames}:\n"
                 f"{sigs_fmt}"
             )
-    for w in warnings:
-        if w.category is PosArgWarning:
-            continue
-        warn(w.message, category=w.category, stacklevel=2)
     if msg is not None:
         warn(msg, UserWarning, stacklevel=2)
 
@@ -198,7 +203,7 @@ def generate_stubs(options: Options) -> None:
     mypy_opts = mypy_options(options)
     py_modules, _, _ = collect_build_targets(options, mypy_opts)
     generate_asts_for_modules(py_modules, options.parse_only, mypy_opts, options.verbose)
-    files = {mod: Path(options.output_dir) / mod2path(mod) for mod in py_modules}
+    files = {mod: Path(options.output_dir) / mod2path(mod, map(Path, options.files)) for mod in py_modules}
     for mod, target in files.items():
         with generate_guarded(mod.module, str(target), ignore_errors=options.ignore_errors, verbose=options.verbose):
             generate_stub_for_py_module(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import pytest
@@ -54,9 +55,21 @@ def test_load_plugin() -> None:
 
 
 def test_basic(basic_project: Path, pkg_dir: Path) -> None:
+    code = dedent(
+        """\
+        from anndata import AnnData
+
+        def example(adata: AnnData, *, copy: bool = False) -> AnnData | None:
+            ...
+        """,
+    )
+    (pkg_dir / "trans.py").write_text(code)
+    (pkg_dir / "ignored.py").write_text("")
+
     hook = mk_hook(basic_project)
     version_api = hook.get_version_api()
     [(version, build)] = version_api.items()
     assert version == "in-tree"
     build(str(basic_project))
-    assert (pkg_dir / "__init__.pyi").is_file()
+    assert (pkg_dir / "trans.pyi").is_file()
+    assert not (pkg_dir / "ignored.pyi").exists()
