@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 import sys
 from logging import getLogger
-from pathlib import Path
-from typing import TYPE_CHECKING, overload
+from pathlib import Path, PurePath
+from typing import TYPE_CHECKING, Literal, overload
 from warnings import warn
 
 from mypy.nodes import NOT_ABSTRACT
@@ -106,18 +106,18 @@ class PrettyImportTracker(ImportTracker):
         return [re.sub(r"\b([\w]+) as \1\b", r"\1", line) for line in super().import_lines()]
 
 
-def mod2path(mod: StubSource, base_paths: Iterable[Path]) -> Path:
+def mod2path(mod: StubSource, base_paths: Iterable[PurePath]) -> PurePath:
     """Convert module name to path."""
     assert mod.path is not None, "Not found module was not skipped"
     for bp in base_paths:
         try:
-            target = Path(mod.path).relative_to(bp)
+            target = PurePath(mod.path).relative_to(bp)
             break
         except ValueError:
             pass
     else:
-        target = Path(*mod.module.split("."))
-    if Path(mod.path).name == "__init__.py":
+        target = PurePath(*mod.module.split("."))
+    if PurePath(mod.path).name == "__init__.py":
         return target / "__init__.pyi"
     return target.with_suffix(".pyi")
 
@@ -131,7 +131,7 @@ def generate_stub_for_py_module(
     include_private: bool = False,
     export_less: bool = False,
     include_docstrings: bool = False,
-) -> tuple[str, bool]:
+) -> str | None:
     ...
 
 
@@ -144,7 +144,7 @@ def generate_stub_for_py_module(
     include_private: bool = False,
     export_less: bool = False,
     include_docstrings: bool = False,
-) -> None:
+) -> bool:
     ...
 
 
@@ -156,7 +156,7 @@ def generate_stub_for_py_module(
     include_private: bool = False,
     export_less: bool = False,
     include_docstrings: bool = False,
-) -> tuple[str, bool] | None:
+) -> str | bool | None:
     """Use AST to generate type stub for single file.
 
     If target is None, return output as string and a flag indicating whether transformations were made.
@@ -187,15 +187,25 @@ def generate_stub_for_py_module(
 
     output = gen.output()
     if target is None:
-        return output, gen.did_transform
+        return output if gen.did_transform else None
     if gen.did_transform:
         # Write output to file
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(output)
-    return None
+    return gen.did_transform
 
 
-def generate_stubs(options: Options) -> None:
+@overload
+def generate_stubs(options: Options, *, write: Literal[True] = True) -> None:
+    ...
+
+
+@overload
+def generate_stubs(options: Options, *, write: Literal[False]) -> dict[PurePath, str]:
+    ...
+
+
+def generate_stubs(options: Options, *, write: bool = True) -> dict[PurePath, str] | None:
     """Generate stubs from collected modules and transform them."""
     if options.inspect:
         msg = "inspect mode not supported for scanpy builder"
@@ -203,25 +213,33 @@ def generate_stubs(options: Options) -> None:
     mypy_opts = mypy_options(options)
     py_modules, _, _ = collect_build_targets(options, mypy_opts)
     generate_asts_for_modules(py_modules, options.parse_only, mypy_opts, options.verbose)
-    files = {mod: Path(options.output_dir) / mod2path(mod, map(Path, options.files)) for mod in py_modules}
+    files = {mod: PurePath(options.output_dir) / mod2path(mod, map(PurePath, options.files)) for mod in py_modules}
+    outputs: dict[PurePath, str] = {}
     for mod, target in files.items():
         with generate_guarded(mod.module, str(target), ignore_errors=options.ignore_errors, verbose=options.verbose):
-            generate_stub_for_py_module(
+            stub = generate_stub_for_py_module(
                 mod,
-                target,
+                Path(target) if write else None,
                 parse_only=options.parse_only,
                 include_private=options.include_private,
                 export_less=options.export_less,
                 include_docstrings=options.include_docstrings,
             )
+            if stub:  # True|str if converted, False|None if not
+                assert write is False, "Should write *or* return a stub"
+                outputs[target] = stub if isinstance(stub, str) else ""
 
     num_modules = len(py_modules)
     if not options.quiet and num_modules > 0:
         logger.info("Processed %d modules", num_modules)
-        if len(files) == 1:
-            logger.info("Generated %s", next(iter(files)))
-        else:
-            logger.info("Generated files under %s", common_dir_prefix([str(target) for target in files]))
+        logger.info("Generated %d stubs", len(outputs))
+        if write:
+            if len(files) == 1:
+                logger.info("Generated %s", next(iter(files)))
+            else:
+                logger.info("Generated files under %s", common_dir_prefix([str(target) for target in files]))
+
+    return None if write else outputs
 
 
 def main(args: list[str] | None = None) -> None:
