@@ -57,12 +57,12 @@ def transform_copy_func_def(sig: FunctionSig) -> Generator[FunctionSig, None, No
         yield sig
         return
 
-    yield _DefaultFunctionSig(
+    yield FunctionSig(
         sig.name,
         _with_arg(sig, "copy", type="Literal[True]", default_value=None),
         "AnnData",
     )
-    yield _DefaultFunctionSig(
+    yield FunctionSig(
         sig.name,
         _with_arg(sig, "copy", type="Literal[False]", default_value="False"),
         "None",
@@ -96,62 +96,3 @@ def _with_arg(sig: FunctionSig, name: str, *, type: Any, default_value: str | No
         else arg
         for arg in sig.args
     ]
-
-
-class _DefaultFunctionSig(FunctionSig):
-    args: list[ArgSig]
-
-    def format_sig(
-        self,
-        indent: str = "",
-        is_async: bool = False,  # noqa: FBT001, FBT002
-        any_val: str | None = None,
-        docstring: str | None = None,
-    ) -> str:
-        """Copy of the super method, but able to format defaults."""
-        import keyword
-
-        from mypy.util import quote_docstring
-
-        args: list[str] = []
-        for arg in self.args:
-            arg_def = arg.name
-
-            if arg_def in keyword.kwlist:
-                arg_def = f"_{arg_def}"
-
-            if (
-                arg.type is None
-                and any_val is not None
-                and arg.name not in ("self", "cls")
-                and not arg.name.startswith("*")
-            ):
-                arg_type: str | None = any_val
-            else:
-                arg_type = arg.type
-            if arg_type:
-                arg_def += f": {arg_type}"
-                if arg.default:
-                    arg_def += " = "
-            elif arg.default:
-                arg_def += "="
-            if arg.default:
-                arg_def += arg.default_value
-
-            args.append(arg_def)
-
-        retfield = ""
-        ret_type = self.ret_type if self.ret_type else any_val
-        if ret_type is not None:
-            retfield = f" -> {ret_type}"
-
-        prefix = "async " if is_async else ""
-        sig = "{indent}{prefix}def {name}({args}){ret}:".format(
-            indent=indent,
-            prefix=prefix,
-            name=self.name,
-            args=", ".join(args),
-            ret=retfield,
-        )
-        suffix = f"\n{indent}    {quote_docstring(docstring)}" if docstring else " ..."
-        return f"{sig}{suffix}"
