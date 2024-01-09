@@ -11,7 +11,7 @@ from mypy.stubdoc import ArgSig, FunctionSig
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator
-    from typing import Any, Never
+    from typing import Any
 
 
 @dataclass
@@ -85,29 +85,21 @@ def _check_copy_param(sig: FunctionSig) -> bool:
 
 
 def _with_arg(sig: FunctionSig, name: str, *, type: Any, default_value: str | None) -> list[ArgSig]:  # noqa: ANN401, A002
-    return [_DefaultArgSig(name, type, default_value) if arg.name == name else arg for arg in sig.args]
-
-
-class _DefaultArgSig(ArgSig):
-    default_value: str | None
-
-    def __init__(self, name: str, type: str | None = None, default_value: str | None = None) -> None:  # noqa: A002
-        self.name = name
-        self.type = type
-        self.default_value = default_value
-
-    @property
-    def default(self) -> bool:
-        return self.default_value is not None
-
-    @default.setter
-    def default(self, value: bool) -> Never:  # pragma: no cover
-        msg = f"cannot set default to {value}"
-        raise RuntimeError(msg)
+    return [
+        ArgSig(
+            name,
+            type,
+            default=default_value is not None,
+            default_value="..." if default_value is None else default_value,
+        )
+        if arg.name == name
+        else arg
+        for arg in sig.args
+    ]
 
 
 class _DefaultFunctionSig(FunctionSig):
-    args: list[_DefaultArgSig | ArgSig]
+    args: list[ArgSig]
 
     def format_sig(
         self,
@@ -143,10 +135,8 @@ class _DefaultFunctionSig(FunctionSig):
                     arg_def += " = "
             elif arg.default:
                 arg_def += "="
-            if isinstance(arg, _DefaultArgSig) and arg.default_value is not None:
+            if arg.default:
                 arg_def += arg.default_value
-            elif arg.default:
-                arg_def += "..."
 
             args.append(arg_def)
 
