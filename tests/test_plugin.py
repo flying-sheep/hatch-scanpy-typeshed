@@ -72,4 +72,5 @@ def test_basic(basic_project: Path, pkg_dir: Path) -> None:
     assert version == "in-tree"
     build(str(basic_project))
     assert (pkg_dir / "trans.pyi").is_file()
+    assert "@overload" in (pkg_dir / "trans.pyi").read_text()
     assert not (pkg_dir / "ignored.pyi").exists()
