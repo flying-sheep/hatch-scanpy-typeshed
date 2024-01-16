@@ -30,6 +30,8 @@ if TYPE_CHECKING:
             from anndata import AnnData
             from typing import Literal, overload
 
+            __all__ = ['example']
+
             @overload
             def example(adata: AnnData, *, copy: Literal[True]) -> AnnData: ...
             @overload
@@ -49,6 +51,8 @@ if TYPE_CHECKING:
             """,
             """\
             from anndata import AnnData
+
+            __all__ = ['example']
 
             def example(adata: AnnData) -> AnnData | None: ...
             """,
