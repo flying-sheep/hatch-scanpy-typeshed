@@ -23,7 +23,7 @@ classifiers = [
 ]
 dependencies = [
     "hatchling",
-    "mypy",
+    "mypy>=1.8",
 ]
 
 [project.scripts]
@@ -75,7 +75,7 @@ line-length = 120
 select = ["ALL"]
 ignore = [
     # No self types
-    "ANN101",
+    "ANN101", "ANN102",
     # Allow dict() syntax
     "C408",
     # Mutually exclusive checks
@@ -117,7 +117,7 @@ output = ".cache/coverage.xml"
 hatch_scanpy_typeshed = ["src/hatch_scanpy_typeshed"]
 
 [tool.coverage.report]
-exclude_lines = [
+exclude_also = [
   "no cov",
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",

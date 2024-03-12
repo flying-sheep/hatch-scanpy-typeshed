@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 import sys
 from logging import getLogger
-from pathlib import Path
-from typing import TYPE_CHECKING, overload
-from warnings import catch_warnings, simplefilter, warn
+from pathlib import Path, PurePath
+from typing import TYPE_CHECKING, Literal, overload
+from warnings import warn
 
 from mypy.nodes import NOT_ABSTRACT
 from mypy.stubgen import (
@@ -23,11 +23,13 @@ from mypy.stubgen import (
     parse_options,
 )
 from mypy.stubutil import FunctionContext, ImportTracker, common_dir_prefix, generate_guarded
-from mypy.util import check_python_version
 
 from .transform import PosArgWarning, transform_func_def
+from .warnings import extract_warnings
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from mypy.nodes import FuncDef
 
 logger = getLogger(__name__)
@@ -56,17 +58,16 @@ class TransformingStubGenerator(ASTStubGenerator):
         default_sig = self.get_default_function_sig(o, ctx)
         sigs_orig = self.get_signatures(default_sig, self.sig_generators, ctx)
 
-        if (sigs := transform_func_def(sigs_orig)) is None:
-            super().visit_func_def(o)
-            return
-
-        # This part is copied from visit_func_def
+        # This part (minus the super()) is copied from visit_func_def
         if (
             self.is_private_name(o.name, o.fullname)
             or self.is_not_in_all(o.name)
             or (self.is_recorded_name(o.name) and not o.is_overload)
         ):
             self.clear_decorators()
+            return
+        if (sigs := transform_func_def(sigs_orig)) is None:
+            super().visit_func_def(o)
             return
         if self.is_top_level() and self._state not in (EMPTY, FUNC):
             self.add("\n")
@@ -90,6 +91,8 @@ class TransformingStubGenerator(ASTStubGenerator):
             docstring=ctx.docstring,
         ):
             self.add(f"{line}\n")
+        if self.is_top_level():
+            self.add("\n")
 
         # This part is copied again
         self.clear_decorators()
@@ -103,11 +106,18 @@ class PrettyImportTracker(ImportTracker):
         return [re.sub(r"\b([\w]+) as \1\b", r"\1", line) for line in super().import_lines()]
 
 
-def mod2path(mod: StubSource) -> Path:
+def mod2path(mod: StubSource, base_paths: Iterable[PurePath]) -> PurePath:
     """Convert module name to path."""
     assert mod.path is not None, "Not found module was not skipped"
-    target = Path(*mod.module.split("."))
-    if Path(mod.path).name == "__init__.py":
+    for bp in base_paths:
+        try:
+            target = PurePath(mod.path).relative_to(bp)
+            break
+        except ValueError:
+            pass
+    else:
+        target = PurePath(*mod.module.split("."))
+    if PurePath(mod.path).name == "__init__.py":
         return target / "__init__.pyi"
     return target.with_suffix(".pyi")
 
@@ -121,7 +131,7 @@ def generate_stub_for_py_module(
     include_private: bool = False,
     export_less: bool = False,
     include_docstrings: bool = False,
-) -> tuple[str, bool]:
+) -> str | None:
     ...
 
 
@@ -134,7 +144,7 @@ def generate_stub_for_py_module(
     include_private: bool = False,
     export_less: bool = False,
     include_docstrings: bool = False,
-) -> None:
+) -> bool:
     ...
 
 
@@ -146,7 +156,7 @@ def generate_stub_for_py_module(
     include_private: bool = False,
     export_less: bool = False,
     include_docstrings: bool = False,
-) -> tuple[str, bool] | None:
+) -> str | bool | None:
     """Use AST to generate type stub for single file.
 
     If target is None, return output as string and a flag indicating whether transformations were made.
@@ -161,60 +171,78 @@ def generate_stub_for_py_module(
     )
     assert mod.ast is not None, "This function must be used only with analyzed modules"
     find_defined_names(mod.ast)
-    with catch_warnings(record=True) as warnings:
-        simplefilter(action="always", category=PosArgWarning)
+    with extract_warnings(category=PosArgWarning) as warnings:
         mod.ast.accept(gen)
         msg = None
-        if func_names := [
-            w.message.func_name if isinstance(w.message, PosArgWarning) else str(w.message)
-            for w in warnings
-            if issubclass(w.category, PosArgWarning)
-        ]:
-            s = "" if len(func_names) == 1 else "s"
-            qualnames = ", ".join(func_names)
-            msg = f"Parameter 'copy' must be a keyword-only argument in {mod.module} function{s} {qualnames}"
+        if sigs := [w.message.sig for w in warnings if isinstance(w.message, PosArgWarning)]:
+            s = "" if len(sigs) == 1 else "s"
+            qualnames = ", ".join(s.name for s in sigs)
+            sigs_fmt = "".join(f"- {s}\n" for s in sigs)
+            msg = (
+                f"Parameter 'copy' must be a keyword-only argument in {mod.module} function{s} {qualnames}:\n"
+                f"{sigs_fmt}"
+            )
     if msg is not None:
         warn(msg, UserWarning, stacklevel=2)
 
     output = gen.output()
     if target is None:
-        return output, gen.did_transform
+        return output if gen.did_transform else None
     if gen.did_transform:
         # Write output to file
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(output)
-    return None
+    return gen.did_transform
 
 
-def generate_stubs(options: Options) -> None:
+@overload
+def generate_stubs(options: Options, *, write: Literal[True] = True) -> None:
+    ...
+
+
+@overload
+def generate_stubs(options: Options, *, write: Literal[False]) -> dict[PurePath, str]:
+    ...
+
+
+def generate_stubs(options: Options, *, write: bool = True) -> dict[PurePath, str] | None:
     """Generate stubs from collected modules and transform them."""
+    if options.inspect:
+        msg = "inspect mode not supported for scanpy builder"
+        raise NotImplementedError(msg)
     mypy_opts = mypy_options(options)
     py_modules, _, _ = collect_build_targets(options, mypy_opts)
     generate_asts_for_modules(py_modules, options.parse_only, mypy_opts, options.verbose)
-    files = {mod: Path(options.output_dir) / mod2path(mod) for mod in py_modules}
+    files = {mod: PurePath(options.output_dir) / mod2path(mod, map(PurePath, options.files)) for mod in py_modules}
+    outputs: dict[PurePath, str] = {}
     for mod, target in files.items():
         with generate_guarded(mod.module, str(target), ignore_errors=options.ignore_errors, verbose=options.verbose):
-            generate_stub_for_py_module(
+            stub = generate_stub_for_py_module(
                 mod,
-                target,
+                Path(target) if write else None,
                 parse_only=options.parse_only,
                 include_private=options.include_private,
                 export_less=options.export_less,
                 include_docstrings=options.include_docstrings,
             )
+            if stub:  # True|str if converted, False|None if not
+                assert write is False, "Should write *or* return a stub"
+                outputs[target] = stub if isinstance(stub, str) else ""
 
     num_modules = len(py_modules)
     if not options.quiet and num_modules > 0:
         logger.info("Processed %d modules", num_modules)
-        if len(files) == 1:
-            logger.info("Generated %s", next(iter(files)))
-        else:
-            logger.info("Generated files under %s", common_dir_prefix([str(target) for target in files]))
+        logger.info("Generated %d stubs", len(outputs))
+        if write:
+            if len(files) == 1:
+                logger.info("Generated %s", next(iter(files)))
+            else:
+                logger.info("Generated files under %s", common_dir_prefix([str(target) for target in files]))
+
+    return None if write else outputs
 
 
 def main(args: list[str] | None = None) -> None:
     """Command line interface."""
-    check_python_version("stubgen")
-
     options = parse_options(sys.argv[1:] if args is None else args)
     generate_stubs(options)
