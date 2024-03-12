@@ -121,8 +121,7 @@ def generate_stub_for_py_module(
     include_private: bool = False,
     export_less: bool = False,
     include_docstrings: bool = False,
-) -> tuple[str, bool]:
-    ...
+) -> tuple[str, bool]: ...
 
 
 @overload
@@ -134,8 +133,7 @@ def generate_stub_for_py_module(
     include_private: bool = False,
     export_less: bool = False,
     include_docstrings: bool = False,
-) -> None:
-    ...
+) -> None: ...
 
 
 def generate_stub_for_py_module(
