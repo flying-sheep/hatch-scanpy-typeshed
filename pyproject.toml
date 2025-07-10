@@ -72,12 +72,13 @@ ignore_missing_imports = false
 
 [tool.ruff]
 line-length = 120
+[tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-    # No self types
-    "ANN101",
     # Allow dict() syntax
     "C408",
+    # Conflicts with formatter
+    "COM812",
     # Mutually exclusive checks
     "D203", "D213",
     # No authors necessary
@@ -94,10 +95,10 @@ allowed-confusables = ["’", "×"]
 [tool.ruff.lint.pylint]
 max-args = 6
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["hatch_scanpy_typeshed"]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/**/*" = [
     "ARG001", # fixtures can look like unused parameters
     "D103", # test functions don’t need docstrings
