@@ -42,7 +42,7 @@ def mk_hook(project_path: Path) -> ScanpyBuildHook:
 
 
 def test_load_plugin() -> None:
-    from hatch_scanpy_typeshed.plugin import ScanpyBuildHook
+    from hatch_scanpy_typeshed.plugin import ScanpyBuildHook  # noqa: PLC0415
 
     assert get_hook_cls() is ScanpyBuildHook
 
