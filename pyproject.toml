@@ -75,20 +75,14 @@ line-length = 120
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-    # Allow dict() syntax
-    "C408",
-    # Conflicts with formatter
-    "COM812",
-    # Mutually exclusive checks
-    "D203", "D213",
-    # No authors necessary
-    "TD002",
-    # TODO comments are OK
-    "FIX002",
-    # I know how to use asserts
-    "S101",
-    # Ignore checks for possible passwords
-    "S105", "S106", "S107",
+    "C408", # Allow dict() syntax
+    "COM812", # Conflicts with formatter
+    "CPY001", # No copyright header needed for GPL
+    "D203", "D213", # Mutually exclusive checks
+    "TD002", # No authors necessary
+    "FIX002", # TODO comments are OK
+    "S101", # I know how to use asserts
+    "S105", "S106", "S107", # Ignore checks for possible passwords
 ]
 allowed-confusables = ["’", "×"]
 
